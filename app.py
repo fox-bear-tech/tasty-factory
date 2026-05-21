@@ -6,24 +6,16 @@ api_key = st.secrets["OPENAI_API_KEY"]
 client = OpenAI(api_key=api_key)
 
 st.set_page_config(page_title="TastyHangul 기지", page_icon="🍚", layout="wide")
-st.title("🍚 TastyHangul 대화형 카피라이팅 기지 (Ver 4.0)")
-st.caption("대장님과 실시간으로 대화하며 톤을 맞춰가는 크리에이티브 엔진입니다.")
+st.title("🍚 TastyHangul 대화형 카피라이팅 기지 (Ver 4.1)")
+st.caption("안정성이 강화된 대장님 전용 실시간 피드백 엔진입니다.")
 
 st.markdown("---")
 
-# 세션 상태(기억 창고) 초기화 - 생성된 원고를 보관하기 위함
+# 세션 상태(기억 창고) 완전 고정
 if "text_x" not in st.session_state:
     st.session_state.text_x = ""
 if "text_threads" not in st.session_state:
     st.session_state.text_threads = ""
-
-# 상단: 키워드 입력 라인
-col_in1, col_in2 = st.columns([3, 1])
-with col_in1:
-    keyword = st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: 삼겹살, 국밥, 막걸리, 치맥")
-with col_in2:
-    st.write("#")
-    generate_btn = st.button("🚀 1차 초안 생성")
 
 # --- 프롬프트 베이스 설정 (미사여구 절대 금지 필터) ---
 prompt_system = """
@@ -39,27 +31,39 @@ prompt_system = """
 - 오프닝 훅과 엔딩 멘트는 매번 이 단어의 유래나 한국인의 리얼한 분위기에 맞게 '완전 새로' 창작해야 한다.
 """
 
-# 1차 생성 로직
-if generate_btn and keyword:
-    with st.spinner(f"'{keyword}' 초안 깎는 중..."):
-        prompt_x = f"{prompt_system}\n주제: {keyword}\n[지시] 위 금지어 필터를 준수하여 280자 이내의 담백하고 힙한 X(트위터) 버전 원고를 출력해라."
-        prompt_threads = f"{prompt_system}\n주제: {keyword}\n[지시] 위 금지어 필터를 준수하되, 하단에 진짜 한국인들만 아는 기발하고 실용적인 '인사이더 다이닝 팁'을 2~3줄 줄바꿈하여 추가한 쓰레드 원고를 출력해라."
-        
-        try:
-            res_x = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": prompt_x}])
-            st.session_state.text_x = res_x.choices[0].message.content
-            
-            res_threads = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": prompt_threads}])
-            st.session_state.text_threads = res_threads.choices[0].message.content
-        except Exception as e:
-            st.error(f"에러 발생: {e}")
+# 상단: 키워드 입력 라인
+col_in1, col_in2 = st.columns([3, 1])
+with col_in1:
+    keyword = st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: 삼겹살, 국밥, 막걸리, 치맥")
+with col_in2:
+    st.write("#")
+    generate_btn = st.button("🚀 1차 초안 생성")
 
-# --- 🎯 [핵심] 대장님의 실시간 피드백 및 튜닝 섹션 ---
+# 1차 생성 작동
+if generate_btn:
+    if keyword:
+        with st.spinner(f"'{keyword}' 초안 깎는 중..."):
+            prompt_x = f"{prompt_system}\n주제: {keyword}\n[지시] 위 금지어 필터를 준수하여 280자 이내의 담백하고 힙한 X(트위터) 버전 원고를 출력해라."
+            prompt_threads = f"{prompt_system}\n주제: {keyword}\n[지시] 위 금지어 필터를 준수하되, 하단에 진짜 한국인들만 아는 기발하고 실용적인 '인사이더 다이닝 팁'을 2~3줄 줄바꿈하여 추가한 쓰레드 원고를 출력해라."
+            
+            try:
+                res_x = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": prompt_x}])
+                st.session_state.text_x = res_x.choices[0].message.content
+                
+                res_threads = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": prompt_threads}])
+                st.session_state.text_threads = res_threads.choices[0].message.content
+            except Exception as e:
+                st.error(f"에러 발생: {e}")
+    else:
+        st.warning("⚠️ 키워드를 먼저 입력해 주세요!")
+
+# --- 🎯 대장님의 실시간 튜닝 및 피드백 라인 ---
 st.markdown("---")
 st.subheader("💬 대장님의 실시간 튜닝 및 피드백 라인")
-feedback = st.text_input("💡 '오프닝을 더 짧게 해줘', '좀 더 은근한 드립 쳐줘' 등 피드백을 던져보세요:", placeholder="예: 야 너무 광고 같다. 수식어 다 빼고 더 차갑고 담백하게 가자.")
+feedback = st.text_input("💡 '오프닝을 더 짧게 해줘', '수식어 다 빼고 팩트만 가자' 등 피드백을 던져보세요:", placeholder="예: 야 너무 광고 같다. 수식어 다 빼고 첫 샘플처럼 담백하게 가자.")
+update_btn = st.button("🛠️ 피드백 반영하여 원고 재수정")
 
-if st.button("🛠️ 피드백 반영하여 원고 재수정"):
+if update_btn:
     if feedback and (st.session_state.text_x or st.session_state.text_threads):
         with st.spinner("대장님 지시 사항 접수하여 원고 재조직 중..."):
             refine_prompt = f"""
@@ -83,7 +87,6 @@ if st.button("🛠️ 피드백 반영하여 원고 재수정"):
                 res_refine = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": refine_prompt}])
                 result = res_refine.choices[0].message.content
                 
-                # 결과 파싱해서 세션에 재저장
                 if "[X_START]" in result and "[X_END]" in result:
                     st.session_state.text_x = result.split("[X_START]")[1].split("[X_END]")[0].strip()
                 if "[THREADS_START]" in result and "[THREADS_END]" in result:
@@ -91,12 +94,13 @@ if st.button("🛠️ 피드백 반영하여 원고 재수정"):
             except Exception as e:
                 st.error(f"수정 중 에러 발생: {e}")
 
-# 화면 결과 배치
+# 화면 결과 배치 (안전하게 세션 상태의 값을 뿌려줌)
+st.markdown("---")
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("🦅 X (트위터) 버전")
-    st.text_area("X 결과물", value=st.session_state.text_x, height=400, key="display_x")
+    st.text_area("X 결과물", value=st.session_state.text_x, height=450, key="display_x")
 
 with col2:
     st.subheader("🧵 쓰레드(Threads) 버전")
-    st.text_area("쓰레드 결과물", value=st.session_state.text_threads, height=400, key="display_threads")
+    st.text_area("쓰레드 결과물", value=st.session_state.text_threads, height=450, key="display_threads")
