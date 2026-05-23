@@ -10,22 +10,26 @@ else:
 
 # --- 화면 기본 세팅 ---
 st.set_page_config(page_title="TastyHangul 기지", page_icon="🍚", layout="wide")
-st.title("🍚 TastyHangul OpenAI 엔진 기지 (Ver 6.0)")
-st.caption("스트림릿 상자 버그를 완전히 우회하여 마크다운 직공법으로 출력합니다.")
+st.title("🍚 TastyHangul OpenAI 엔진 기지 (Ver 6.5)")
+st.caption("글로벌 타겟 맞춤형! 무조건 영어(English)로 카피를 뽑아내는 버전입니다.")
 st.markdown("---")
 
-# 대장님 전용 톤앤매너 프롬프트
+# 🔥 [글로벌 맞춤형] 대장님 전용 영문 출력 톤앤매너 프롬프트
 prompt_system = """
-너는 외국인들이 한글 메뉴판을 마주했을 때 1초 만에 단어 구조를 직관적으로 깨닫게 만드는 'TastyHangul'의 힙한 글로벌 카피라이터야.
+You are a hip, global copywriter for 'TastyHangul', a brand that helps foreigners intuitively understand Korean food menus and dining culture.
 
-[🚫 절대 금지 수식어]
-- sizzling, ultimate, ultimate feast, blissful, explosion, discover the magic, dive into, stepping into a world, journey 등 오글거리는 광고성 미사여구 절대 금지.
-- 주접떨지 말고 담백하고, 쿨하고, 위트 있게 팩트와 문화만 툭 던져라. 과장하지 마라.
+[🎯 CRITICAL MANDATE: LANGUAGE]
+- You MUST write all opening, body, and closing sentences entirely in ENGUSH.
+- The target audience is foreigners who do not know Korean.
 
-[💡 필수 레이아웃]
-- 반드시 단어를 한 글자씩 쪼개서 직관적인 뜻을 매칭할 것.
-  (예: 삼 (Sam) = 3 / 겹 (Gyeop) = Layer / 살 (Sal) = Meat)
-- 오프닝과 엔딩 멘트는 고정하지 말고, 매번 이 단어의 유래나 한국인의 리얼한 분위기에 맞게 완전 새로 담백하게 창작해라.
+[🚫 FORBIDDEN WORDS]
+- Never use cheesy, over-the-top marketing clichés like: "sizzling", "ultimate", "ultimate feast", "blissful", "explosion", "discover the magic", "dive into", "stepping into a world", "journey", etc.
+- Keep the tone cool, calm, witty, and factual. Do not hype it up.
+
+[💡 REQUIRED LAYOUT]
+- You MUST break down the Korean name syllable by syllable to show its direct meaning.
+  (e.g., Sam (Sam) = 3 / Gyeop (Gyeop) = Layer / Sal (Sal) = Meat)
+- Never fix or reuse the opening and closing remarks. Completely reinvent them every time based on the specific food's origin, history, or the real, authentic atmosphere of Korean local diners.
 """
 
 # 세션 상태에 결과물 저장 공간 확보
@@ -35,21 +39,21 @@ if "final_threads" not in st.session_state: st.session_state.final_threads = ""
 # --- 🖥️ 입력 구역 ---
 col_in1, col_in2 = st.columns([3, 1])
 with col_in1:
-    kw = st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: 삼겹살, 국밥, 쌈장", key="input_keyword")
+    kw = st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: Samgyeopsal, 삼겹살, 국밥, 쌈장", key="input_keyword")
 with col_in2:
     st.write("#")
     btn_draft = st.button("🚀 1차 초안 생성")
 
 # 초안 생성 버튼 클릭 시 작동
 if btn_draft and kw:
-    with st.spinner("GPT-4o 엔진이 원고를 뽑아내는 중입니다..."):
+    with st.spinner("GPT-4o가 영문 원고를 작성 중입니다..."):
         try:
             # 1. X 버전 생성
             res_x = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": prompt_system},
-                    {"role": "user", "content": f"주제: {kw}\n[지시] 280자 이내의 담백하고 힙한 X(트위터) 버전 원고를 출력해라. 다른 잡설은 생략한다."}
+                    {"role": "user", "content": f"Topic: {kw}\n[Instruction] Write a cool, concise X (Twitter) copy within 280 characters in ENGLISH. Do not include any other commentary."}
                 ],
                 temperature=0.8
             )
@@ -60,7 +64,7 @@ if btn_draft and kw:
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": prompt_system},
-                    {"role": "user", "content": f"주제: {kw}\n[지시] 하단에 진짜 한국인들만 아는 기발하고 실용적인 '인사이더 다이닝 팁'을 2~3줄 줄바꿈하여 추가한 쓰레드 원고를 출력해라. 다른 잡설은 생략한다."}
+                    {"role": "user", "content": f"Topic: {kw}\n[Instruction] Write a Threads copy in ENGLISH. At the bottom, add 2-3 lines of witty and highly practical 'Insider Dining Tips' that only real Koreans know (use line breaks). Do not include any other commentary."}
                 ],
                 temperature=0.8
             )
@@ -72,25 +76,26 @@ st.markdown("---")
 
 # --- 🖥️ 실시간 피드백 튜닝 구역 ---
 st.subheader("💬 대장님의 실시간 튜닝 및 피드백 라인")
-fb = st.text_input("💡 피드백을 던져보세요:", placeholder="예: 완전히 힘 빼고 리얼한 동네 형 톤으로 깎아줘.", key="input_feedback")
+fb = st.text_input("💡 피드백을 던져보세요 (한글로 편하게 적으셔도 됩니다):", placeholder="예: 좀 더 미국 브루클린 형들이 쓸 법한 힙한 슬랭을 섞어줘.", key="input_feedback")
 btn_refine = st.button("🛠️ 피드백 반영하여 원고 재수정")
 
 if btn_refine and fb:
     if st.session_state.final_x or st.session_state.final_threads:
-        with st.spinner("대장님 피드백 반영하여 다시 깎는 중..."):
+        with st.spinner("대장님 피드백 반영하여 영문 도면 다시 깎는 중..."):
             refine_prompt = f"""
-            브랜드 디렉터의 피드백을 완벽하게 수용해서 기존 원고들을 완전히 뜯어고쳐라.
+            Completely rewrite the existing English copies based on the Brand Director's feedback below.
+            Maintain the core system rules (write in English, break down syllables, no clichés).
             
-            [대장님의 피드백]: "{fb}"
-            [기존 X 원고]:\n{st.session_state.final_x}
-            [기존 쓰레드 원고]:\n{st.session_state.final_threads}
+            [Director's Feedback]: "{fb}"
+            [Existing X Copy]:\n{st.session_state.final_x}
+            [Existing Threads Copy]:\n{st.session_state.final_threads}
             
-            출력 형식은 반드시 아래 구조를 지켜라. 다른 설명이나 인사말은 일절 하지 마라.
+            Strictly use the following output format. Do not write any other introduction or conclusion.
             [X_START]
-            (수정된 X 원고 내용)
+            (Revised English X copy)
             [X_END]
             [THREADS_START]
-            (수정된 쓰레드 원고 내용)
+            (Revised English Threads copy)
             [THREADS_END]
             """
             try:
@@ -113,18 +118,18 @@ if btn_refine and fb:
 
 st.markdown("---")
 
-# --- 🖥️ 최종 결과물 출력 구역 (버그 방지를 위해 박스 대신 '마크다운 블록'으로 직공) ---
+# --- 🖥️ 최종 결과물 출력 구역 ---
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("🦅 X (트위터) 버전")
     if st.session_state.final_x:
         st.info(st.session_state.final_x)
     else:
-        st.write("초안 생성을 누르면 결과가 여기에 출력됩니다.")
+        st.write("Outputs will appear here in English once generated.")
 
 with col2:
     st.subheader("🧵 쓰레드(Threads) 버전")
     if st.session_state.final_threads:
         st.success(st.session_state.final_threads)
     else:
-        st.write("초안 생성을 누르면 결과가 여기에 출력됩니다.")
+        st.write("Outputs will appear here in English once generated.")
