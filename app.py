@@ -1,27 +1,20 @@
 import streamlit as st
-from openai import OpenAI  # 가장 안정적인 최신 오픈AI 호출 방식
+from openai import OpenAI
 
-# 1. 스트림릿 Secrets에서 오픈AI API 키를 가져와 클라이언트 초기화
+# 1. API 클라이언트 초기화
 if "OPENAI_API_KEY" in st.secrets:
-    api_key = st.secrets["OPENAI_API_KEY"]
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 else:
-    st.error("스트림릿 Secrets에 'OPENAI_API_KEY'가 등록되어 있지 않습니다.")
+    st.error("스트림릿 Secrets에 'OPENAI_API_KEY'를 등록해주세요.")
     st.stop()
 
-# --- 기본 페이지 세팅 ---
+# --- 화면 기본 세팅 ---
 st.set_page_config(page_title="TastyHangul 기지", page_icon="🍚", layout="wide")
-st.title("🍚 TastyHangul OpenAI 엔진 기지 (Ver 5.0)")
-st.caption("GPT-4o 엔진으로 심장을 전격 교체하여 힙한 원고를 뽑아냅니다.")
+st.title("🍚 TastyHangul OpenAI 엔진 기지 (Ver 5.5)")
+st.caption("화면 새로고침 버그를 완전히 박살낸 직공법 엔진 레이아웃입니다.")
 st.markdown("---")
 
-# [기억 창고] 화면 새로고침 시 데이터 증발 방지 세션 설정
-if "text_x" not in st.session_state:
-    st.session_state.text_x = ""
-if "text_threads" not in st.session_state:
-    st.session_state.text_threads = ""
-
-# 대장님 전용 고정 프롬프트 뼈대
+# 대장님 전용 톤앤매너 프롬프트
 prompt_system = """
 너는 외국인들이 한글 메뉴판을 마주했을 때 1초 만에 단어 구조를 직관적으로 깨닫게 만드는 'TastyHangul'의 힙한 글로벌 카피라이터야.
 
@@ -35,12 +28,23 @@ prompt_system = """
 - 오프닝과 엔딩 멘트는 고정하지 말고, 매번 이 단어의 유래나 한국인의 리얼한 분위기에 맞게 완전 새로 담백하게 창작해라.
 """
 
-# 🎯 [기능 1] GPT-4o 기반 1차 초안 생성 함수
-def generate_draft():
-    kw = st.session_state.input_keyword
-    if kw:
+# 기억 창고 초기화 (피드백 수정용)
+if "x_result" not in st.session_state: st.session_state.x_result = ""
+if "threads_result" not in st.session_state: st.session_state.threads_result = ""
+
+# --- 🖥️ 1단계: 초안 생성 구역 ---
+col_in1, col_in2 = st.columns([3, 1])
+with col_in1:
+    kw = st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: 삼겹살, 국밥, 쌈장")
+with col_in2:
+    st.write("#")
+    btn_draft = st.button("🚀 1차 초안 생성")
+
+# [핵심 변경] 버튼이 클릭되면 '그 자리에서 즉시' 통신하고 결과를 화면에 고정
+if btn_draft and kw:
+    with st.spinner("GPT-4o 엔진 가동 중..."):
         try:
-            # 1. X(트위터) 버전 생성
+            # 1. X 버전 생성
             res_x = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -49,8 +53,8 @@ def generate_draft():
                 ],
                 temperature=0.8
             )
-            st.session_state.text_x = res_x.choices[0].message.content
-            
+            st.session_state.x_result = res_x.choices[0].message.content
+
             # 2. 쓰레드 버전 생성
             res_threads = client.chat.completions.create(
                 model="gpt-4o",
@@ -60,69 +64,61 @@ def generate_draft():
                 ],
                 temperature=0.8
             )
-            st.session_state.text_threads = res_threads.choices[0].message.content
-            
+            st.session_state.threads_result = res_threads.choices[0].message.content
         except Exception as e:
-            st.error(f"오픈AI API 에러 발생: {e}")
-
-# 🎯 [기능 2] 대장님 피드백 반영 및 원고 재수정 함수
-def refine_draft():
-    fb = st.session_state.input_feedback
-    if fb and (st.session_state.text_x or st.session_state.text_threads):
-        refine_prompt = f"""
-        브랜드 디렉터의 피드백을 완벽하게 수용해서 기존 원고들을 완전히 뜯어고쳐라.
-        
-        [대장님의 피드백]: "{fb}"
-        [기존 X 원고]:\n{st.session_state.text_x}
-        [기존 쓰레드 원고]:\n{st.session_state.text_threads}
-        
-        출력 형식은 반드시 아래 구조를 지켜라. 다른 설명이나 인사말은 일절 하지 마라.
-        [X_START]
-        (수정된 X 원고 내용)
-        [X_END]
-        [THREADS_START]
-        (수정된 쓰레드 원고 내용)
-        [THREADS_END]
-        """
-        try:
-            res_refine = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": prompt_system},
-                    {"role": "user", "content": refine_prompt}
-                ],
-                temperature=0.7
-            )
-            result = res_refine.choices[0].message.content
-            
-            if "[X_START]" in result and "[X_END]" in result:
-                st.session_state.text_x = result.split("[X_START]")[1].split("[X_END]")[0].strip()
-            if "[THREADS_START]" in result and "[THREADS_END]" in result:
-                st.session_state.text_threads = result.split("[THREADS_START]")[1].split("[THREADS_END]")[0].strip()
-        except Exception as e:
-            st.error(f"수정 중 에러 발생: {e}")
-
-# --- 🖥️ 화면 레이아웃 화면에 그리기 ---
-col_in1, col_in2 = st.columns([3, 1])
-with col_in1:
-    st.text_input("📝 원하는 주제(키워드)를 입력하세요:", placeholder="예: 삼겹살, 국밥, 쌈장", key="input_keyword")
-with col_in2:
-    st.write("#")
-    st.button("🚀 1차 초안 생성", on_click=generate_draft)
+            st.error(f"API 통신 에러: {e}")
 
 st.markdown("---")
 
+# --- 🖥️ 2단계: 실시간 피드백 튜닝 구역 ---
 st.subheader("💬 대장님의 실시간 튜닝 및 피드백 라인")
-st.text_input("💡 피드백을 던져보세요:", placeholder="예: 완전히 힘 빼고 리얼한 동네 형 톤으로 깎아줘.", key="input_feedback")
-st.button("🛠️ 피드백 반영하여 원고 재수정", on_click=refine_draft)
+fb = st.text_input("💡 피드백을 던져보세요:", placeholder="예: 완전히 힘 빼고 리얼한 동네 형 톤으로 깎아줘.")
+btn_refine = st.button("🛠️ 피드백 반영하여 원고 재수정")
+
+if btn_refine and fb:
+    if st.session_state.x_result or st.session_state.threads_result:
+        with st.spinner("피드백 반영하여 도면 깎는 중..."):
+            refine_prompt = f"""
+            브랜드 디렉터의 피드백을 완벽하게 수용해서 기존 원고들을 완전히 뜯어고쳐라.
+            
+            [대장님의 피드백]: "{fb}"
+            [기존 X 원고]:\n{st.session_state.x_result}
+            [기존 쓰레드 원고]:\n{st.session_state.threads_result}
+            
+            출력 형식은 반드시 아래 구조를 지켜라. 다른 설명이나 인사말은 일절 하지 마라.
+            [X_START]
+            (수정된 X 원고 내용)
+            [X_END]
+            [THREADS_START]
+            (수정된 쓰레드 원고 내용)
+            [THREADS_END]
+            """
+            try:
+                res_refine = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": prompt_system},
+                        {"role": "user", "content": refine_prompt}
+                    ],
+                    temperature=0.7
+                )
+                result = res_refine.choices[0].message.content
+                
+                if "[X_START]" in result and "[X_END]" in result:
+                    st.session_state.x_result = result.split("[X_START]")[1].split("[X_END]")[0].strip()
+                if "[THREADS_START]" in result and "[THREADS_END]" in result:
+                    st.session_state.threads_result = result.split("[THREADS_START]")[1].split("[THREADS_END]")[0].strip()
+            except Exception as e:
+                st.error(f"수정 중 에러 발생: {e}")
 
 st.markdown("---")
 
+# --- 🖥️ 3단계: 최종 결과물 렌더링 구역 ---
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("🦅 X (트위터) 버전")
-    st.text_area("X 결과물", value=st.session_state.text_x, height=450, key="display_x")
+    st.text_area("X 결과물", value=st.session_state.x_result, height=450, key="display_x")
 
 with col2:
     st.subheader("🧵 쓰레드(Threads) 버전")
-    st.text_area("쓰레드 결과물", value=st.session_state.text_threads, height=450, key="display_threads")
+    st.text_area("쓰레드 결과물", value=st.session_state.threads_result, height=450, key="display_threads")
